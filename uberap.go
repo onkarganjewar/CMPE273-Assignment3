@@ -431,3 +431,10 @@ func main() {
 	}
 	server.ListenAndServe()
 }
+/*
+curl -H "Content-Type: application/json" -X POST -d '{"starting_from_location_id": "56517ac40a956e220c54cc26","location_ids" : [ "565030b20a956e1034831e08", "565030560a956e1034831e07", "5631caf90a956e12440ccdaa", "564d93b90a956e295825d7f4" ]
+}' http://localhost:3021/trips
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   500  100   310  100   190     11      6  0:00:31  0:00:27  0:00:04    29{"id":"12377","status":"Planning","starting_from_location_id":"56517ac40a956e220c54cc26","best_route_location_ids":["5631caf90a956e12440ccdaa","564d93b90a956e295825d7f4","565030b20a956e1034831e08","565030560a956e1034831e07"],"total_uber_costs":57,"total_uber_duration":3256,"total_distance":21.470000000000002}
+*/
