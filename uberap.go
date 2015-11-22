@@ -157,7 +157,7 @@ func Post_trip(rw http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 			UrlParams = UrlParams + "&end_latitude=" + strconv.FormatFloat(Mgotemp.Coordinate.Lat, 'f', -1, 64) + "&end_longitude=" + strconv.FormatFloat(Mgotemp.Coordinate.Lng, 'f', -1, 64)
 
 
-			Url := "https://sandbox-api.uber.com/v1/estimates/price?server_token=HIDDEN&" + UrlParams
+			Url := "https://sandbox-api.uber.com/v1/estimates/price?server_token=F7FuxUeOTmYNrr6wFZxVMERWwAcX7zcp5GmxqOqh&" + UrlParams
 			fmt.Println("Complete url")
 			fmt.Println(Url)
 			res, _ := http.Get(Url)
@@ -444,10 +444,16 @@ $ curl -H "Content-Type: application/json" -X POST -d '{"starting_from_location_
 ==============================================================================================
 =======
 
+
+Onkar@onkar-personal MINGW64 /
+$ curl -H "Content-Type: application/json" -X POST -d '{"starting_from_location_id": "5652174f0a956e1a9c933d12","location_ids" : [ "5652165e0a956e1a9c933d0d","565216b30a956e1a9c933d0e","5652175e0a956e1a9c933d13","565216f20a956e1a9c933d0f"]}' http://localhost:3025/trips
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   482  100   297  100   185      8      5  0:00:37  0:00:33  0:00:04    23{"id":"12413","status":"Planning","starting_from_location_id":"5652174f0a956e1a9c933d12","best_route_location_ids":["5652165e0a956e1a9c933d0d","565216f20a956e1a9c933d0f","5652175e0a956e1a9c933d13","565216b30a956e1a9c933d0e"],"total_uber_costs":76,"total_uber_duration":4936,"total_distance":23.12}
+
 ******************************************432am**************************************
 Onkar@onkar-personal MINGW64 /
-$ curl -H "Content-Type: application/json" -X POST -d '{"starting_from_location_id": "56517ac40a956e220c54cc26","location_ids" : [ "565030b20a956e1034831e08", "565030560a956e1034831e07", "5631caf90a956e12440ccdaa", "564d93b90a956e295825d7f4" ]
-}' http://localhost:3021/trips
+$ curl -H "Content-Type: application/json" -X POST -d '{"starting_from_location_id": "56517ac40a956e220c54cc26","location_ids" : [ "565030b20a956e1034831e08", "565030560a956e1034831e07", "5631caf90a956e12440ccdaa", "564d93b90a956e295825d7f4" ]}' http://localhost:3021/trips
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100   500  100   310  100   190      9      6  0:00:34  0:00:31  0:00:03    28{"id":"12382","status":"Planning","starting_from_location_id":"56517ac40a956e220c54cc26","best_route_location_ids":["5631caf90a956e12440ccdaa","564d93b90a956e295825d7f4","565030b20a956e1034831e08","565030560a956e1034831e07"],"total_uber_costs":73,"total_uber_duration":3185,"total_distance":21.650000000000002}
