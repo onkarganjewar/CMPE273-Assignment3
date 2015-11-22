@@ -473,11 +473,7 @@ curl -H "Content-Type: application/json" -X POST -d '{"starting_from_location_id
 
 
 *********************0428HRS****************
-curl -H "Content-Type: application/json" -X POST -d '{"starting_from_location_id": "564e7e740a956e18f0fc6ae7","location_ids" : [ "565030b20a956e1034831e08", "565030560a956e1034831e07", "5631caf90a956e12440ccdaa", "564d93b90a956e295825d7f4" ]
-}' http://localhost:3021/trips
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   484  100   294  100   190      9      6  0:00:32  0:00:31  0:00:01    24{"id":"12381","status":"Planning","starting_from_location_id":"564e7e740a956e18f0fc6ae7","best_route_location_ids":["564d93b90a956e295825d7f4","5631caf90a956e12440ccdaa","565030b20a956e1034831e08","565030560a956e1034831e07"],"total_uber_costs":71,"total_uber_duration":3129,"total_distance":17}
+
 
 
 */
