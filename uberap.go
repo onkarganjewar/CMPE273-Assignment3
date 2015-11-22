@@ -12,7 +12,7 @@ import (
 	"strconv"
 )
 
-type PriceEst struct {
+type UberPrices struct {
 	Prices []struct {
 		ProductID       string  `json:"product_id"`
 		CurrencyCode    string  `json:"currency_code"`
@@ -26,9 +26,9 @@ type PriceEst struct {
 	} `json:"prices"`
 }
 
-type TimeEstimates struct {
+type UberEstimates struct {
 	Times []struct {
-		Local_Name string `json:"localized_display_name"`
+		LocalizedDisplayName string `json:"localized_display_name"`
 		Estimate             int    `json:"estimate"`
 		DisplayName          string `json:"display_name"`
 		ProductID            string `json:"product_id"`
@@ -36,24 +36,24 @@ type TimeEstimates struct {
 }
 
 type Request struct {
-	StartingId      string   `json:"starting_from_location_id"`
+	StartPt      string   `json:"starting_from_location_id"`
 	Location_ids []string `json:"location_ids"`
 }
 
 type Response struct {
 	TripId           string   `json:"id" bson:"_id"`
 	Status           string   `json:"status" bson:"status"`
-	StartingId          string   `json:"starting_from_location_id" bson:"starting_from_location_id"`
-	Bestlocation_ids []string `json:"Bestlocation_ids" bson:"Bestlocation_ids"`
+	StartPt          string   `json:"starting_from_location_id" bson:"starting_from_location_id"`
+	Bestlocation_ids []string `json:"best_route_location_ids" bson:"best_route_location_ids"`
 	Costs            int      `json:"total_uber_costs" bson:"total_uber_costs"`
 	Duration         int      `json:"total_uber_duration" bson:"total_uber_duration"`
-	Distance         float64  `json: "total_distance" bson:"total_distance"`
+	Distance         float64  `json:"total_distance" bson:"total_distance"`
 }
 
 type PutResponse struct {
 	TripId           string   `json:"id" bson:"_id"`
 	Status           string   `json:"status" bson:"status"`
-	StartingId          string   `json:"starting_from_location_id" bson:"starting_from_location_id"`
+	StartPt          string   `json:"starting_from_location_id" bson:"starting_from_location_id"`
 	NextPt           string   `json:"next_destination_location_id" bson:"next_destination_location_id"`
 	Bestlocation_ids []string `json:"Bestlocation_ids" bson:"Bestlocation_ids"`
 	Costs            int      `json:"total_uber_costs" bson:"total_uber_costs"`
@@ -62,7 +62,7 @@ type PutResponse struct {
 	ETA              int      `json: "uber_wait_time_eta" bson:"uber_wait_time_eta"`
 }
 
-type MgoResp struct {
+type MongoResponse struct {
 	Id         bson.ObjectId `json:"id" bson:"_id"`
 	Name       string        `json:"name" bson:"name"`
 	Address    string        `json:"address" bson:"address" `
@@ -106,21 +106,21 @@ func NewUserController(s *mgo.Session) *UserController {
 	return &UserController{s}
 }
 
-func MakeTrip(rw http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func createLoc(rw http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	uc := NewUserController(getSession())
-	var PriceResp PriceEst
-	var Resp Response
-	var Req Request
+	var U UberPrices
+	var R Response
+	var V Request
 
-	MgoResp := MgoResp{}
+	V_temp := MongoResponse{}
 
-	json.NewDecoder(r.Body).Decode(&Req)
-	json.NewDecoder(r.Body).Decode(&Resp)
+	json.NewDecoder(r.Body).Decode(&V)
+	json.NewDecoder(r.Body).Decode(&R)
 
-	routes := append(Resp.Bestlocation_ids, Req.StartingId)
+	routes := append(R.Bestlocation_ids, V.StartPt)
 
-	for _, each := range Req.Location_ids {
+	for _, each := range V.Location_ids {
 
 		routes = append(routes, each)
 	}
@@ -142,30 +142,31 @@ func MakeTrip(rw http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		for j := 0; j < len(routes); j++ {
 
 			oid := bson.ObjectIdHex(routes[i])
-			if err := uc.session.DB("tripplanner").C("locationsC").FindId(oid).One(&MgoResp); err != nil {
+			if err := uc.session.DB("tripplanner").C("locationsC").FindId(oid).One(&V_temp); err != nil {
 				rw.WriteHeader(404)
 				return
 			}
-			UrlParams := "start_latitude=" + strconv.FormatFloat(MgoResp.Coordinate.Lat, 'f', -1, 64) + "&start_longitude=" + strconv.FormatFloat(MgoResp.Coordinate.Lng, 'f', -1, 64)
+			UrlParams := "start_latitude=" + strconv.FormatFloat(V_temp.Coordinate.Lat, 'f', -1, 64) + "&start_longitude=" + strconv.FormatFloat(V_temp.Coordinate.Lng, 'f', -1, 64)
 			oid = bson.ObjectIdHex(routes[j])
 
-			if err := uc.session.DB("tripplanner").C("locationsC").FindId(oid).One(&MgoResp); err != nil {
+			if err := uc.session.DB("tripplanner").C("locationsC").FindId(oid).One(&V_temp); err != nil {
 				rw.WriteHeader(404)
 				return
 			}
 
-			UrlParams = UrlParams + "&end_latitude=" + strconv.FormatFloat(MgoResp.Coordinate.Lat, 'f', -1, 64) + "&end_longitude=" + strconv.FormatFloat(MgoResp.Coordinate.Lng, 'f', -1, 64)
-			UrlParams = UrlParams + "&access_token=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZXMiOlsicHJvZmlsZSIsImhpc3RvcnkiXSwic3ViIjoiYzhhMGMzOGEtYzk3ZS00NGFiLWJlNDAtNGI3OWVmYjBmMTJiIiwiaXNzIjoidWJlci11czEiLCJqdGkiOiI4N2U3YjBiMy0wZjllLTRiNzgtOTM5Ni1jYTEyNTViMzA0ZWIiLCJleHAiOjE0NTA3NjA0OTUsImlhdCI6MTQ0ODE2ODQ5NCwidWFjdCI6IjhRdTQxOXJmR3hVZHkyNlZyVVM5N2lyZDJkWHM1eSIsIm5iZiI6MTQ0ODE2ODQwNCwiYXVkIjoiT2VJWE1XS1kwQ181MmtfWjFWeXdtMGtnY1d6bkRSRk0ifQ.YRQuBuDEX5iFltWFwwh-LXfvpYeXvepWKwPIti3Np31Iyk5pvlZTWaVcNKD408WmonrsBqx2V0vyba1LrXZeHndDXY3-i8UmW7bnKaETnN5vQ8vXIfevloc-H5PArPz92JUI0gyIDyi8ermg_Iyi9FrdgC-3sQmlCf-T_pg-JJ0mwN9kN1c3CDAOIDaNfNnBZNN04MErTXN3DrvcoJRXpd09_zdnLu34GB21Yd8JmH34Tg6hffizeB-FGA-I413eJEPKldwpD6sZD8d6sksv2IAUqs8zVsRWzXSTE4BZYVXXK6sGtAPExg4hvKAYXuq8v3PdESK2d-SdHmaaBkp9pQ"
+			UrlParams = UrlParams + "&end_latitude=" + strconv.FormatFloat(V_temp.Coordinate.Lat, 'f', -1, 64) + "&end_longitude=" + strconv.FormatFloat(V_temp.Coordinate.Lng, 'f', -1, 64)
+			//UrlParams = UrlParams + "&access_token=<HIDDEN>"
 
-			Url := "https://sandbox-api.uber.com/v1/estimates/price?" + UrlParams
-
+			Url := "https://sandbox-api.uber.com/v1/estimates/price?server_token=F7FuxUeOTmYNrr6wFZxVMERWwAcX7zcp5GmxqOqh&" + UrlParams
+			fmt.Println("Complete url")
+			fmt.Println(Url)
 			res, _ := http.Get(Url)
 			data, _ := ioutil.ReadAll(res.Body)
 			res.Body.Close()
-			_ = json.Unmarshal(data, &PriceResp)
-			for _, each := range PriceResp.Prices {
+			_ = json.Unmarshal(data, &U)
+			for _, each := range U.Prices {
 				if each.DisplayName == "uberX" {
-					Costs = each.HighEstimate
+					Costs = each.LowEstimate
 					Duration = each.Duration
 					Distance = each.Distance
 				}
@@ -177,9 +178,13 @@ func MakeTrip(rw http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 			Adjacency_matrix[i][j] = Costs
 			Distance_matrix[i][j] = Distance
 			Duration_matrix[i][j] = Duration
+			fmt.Println("Inside the Matrix")		}
 
-		}
+
+//program is not able to reach this statement
+fmt.Println("Out of the Matrix")
 	}
+	fmt.Println("Neither here")
 
 	for i := 0; i < len(Adjacency_matrix); i++ {
 		for j := 0; j < len(Adjacency_matrix); j++ {
@@ -258,15 +263,15 @@ func MakeTrip(rw http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	}
 
-	fmt.Println("Optimized route : ", len(Req.Location_ids), len(wayPoints))
+	fmt.Println("Optimized route : ", len(V.Location_ids), len(wayPoints))
 
 	for i := 1; i <= len(wayPoints)-2; i++ {
 
 		fmt.Println("Waypoints", wayPoints[i])
 		j := wayPoints[i]
 		fmt.Println("Location to be appended", routes[j])
-		Resp.Bestlocation_ids = append(Resp.Bestlocation_ids, routes[j])
-		fmt.Println("Optimized route : ", j, Resp.Bestlocation_ids)
+		R.Bestlocation_ids = append(R.Bestlocation_ids, routes[j])
+		fmt.Println("Optimized route : ", j, R.Bestlocation_ids)
 	}
 
 	fmt.Println("Total costs  is : ", Costs)
@@ -274,23 +279,23 @@ func MakeTrip(rw http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	fmt.Println("Total duration is : ", Duration)
 
 	c := uc.session.DB("tripplanner").C("locationsC")
-	results := []MgoResp{}
+	results := []MongoResponse{}
 	_ = c.Find(nil).All(&results)
 
 	if len(results) == 0 {
-		Resp.TripId = strconv.Itoa(12345)
+		R.TripId = strconv.Itoa(12345)
 	} else {
-		Resp.TripId = strconv.Itoa(12345 + len(results))
+		R.TripId = strconv.Itoa(12345 + len(results))
 	}
 
-	Resp.Status = "Planning"
-	Resp.StartingId = Req.StartingId
-	Resp.Costs = Costs
-	Resp.Duration = Duration
-	Resp.Distance = Distance
+	R.Status = "Planning"
+	R.StartPt = V.StartPt
+	R.Costs = Costs
+	R.Duration = Duration
+	R.Distance = Distance
 
-	uc.session.DB("tripplanner").C("locationsC").Insert(Resp)
-	UJ, _ := json.Marshal(Resp)
+	uc.session.DB("tripplanner").C("locationsC").Insert(R)
+	UJ, _ := json.Marshal(R)
 	fmt.Fprintf(rw, "%s", UJ)
 
 	rw.Header().Set("Content-Type", "application/json")
@@ -299,46 +304,46 @@ func MakeTrip(rw http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	fmt.Println("End")
 }
 
-func GetTrip(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+func getLoc(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 
 	uc := NewUserController(getSession())
 	id := p.ByName("id")
-	var Req Response
+	var V Response
 
-	if err := uc.session.DB("tripplanner").C("locationsC").FindId(id).One(&Req); err != nil {
+	if err := uc.session.DB("tripplanner").C("locationsC").FindId(id).One(&V); err != nil {
 		w.WriteHeader(404)
 		return
 	}
-	fmt.Println(Req)
-	Uj, _ := json.Marshal(Req)
+	fmt.Println(V)
+	Uj, _ := json.Marshal(V)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 	fmt.Fprintf(w, "%s", Uj)
 
 }
 
-func PutTrip(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+func putLoc(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 
 	uc := NewUserController(getSession())
 	id := p.ByName("id")
 
-	var Req Response
+	var V Response
 	var V_Updated PutResponse
-	var P TimeEstimates
-	//var MgoResp Response
-	var M MgoResp
+	var P UberEstimates
+	//var V_temp Response
+	var M MongoResponse
 	var ETA int
 
-	if err := uc.session.DB("tripplanner").C("locationsC").FindId(id).One(&Req); err != nil {
+	if err := uc.session.DB("tripplanner").C("locationsC").FindId(id).One(&V); err != nil {
 		w.WriteHeader(404)
 		return
 	}
 
-	fmt.Println(PutRequestIndex, len(Req.Bestlocation_ids))
+	fmt.Println(PutRequestIndex, len(V.Bestlocation_ids))
 
-	if PutRequestIndex < len(Req.Bestlocation_ids) {
+	if PutRequestIndex < len(V.Bestlocation_ids) {
 
-		Mid := Req.Bestlocation_ids[PutRequestIndex]
+		Mid := V.Bestlocation_ids[PutRequestIndex]
 
 		if !bson.IsObjectIdHex(Mid) {
 			w.WriteHeader(404)
@@ -353,7 +358,7 @@ func PutTrip(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 			w.WriteHeader(404)
 			return
 		}
-		fmt.Println("MgoResp is ", M)
+		fmt.Println("MongoResponse is ", M)
 		Url := "https://sandbox-api.uber.com/v1/estimates/time?start_latitude="
 		Url = Url + strconv.FormatFloat(M.Coordinate.Lat, 'f', -1, 64)
 		Url = Url + "&start_longitude="
@@ -368,40 +373,40 @@ func PutTrip(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		_ = json.Unmarshal(data, &P)
 		fmt.Println(P)
 		for _, each := range P.Times {
-			if each.Local_Name == "uberX" {
+			if each.LocalizedDisplayName == "uberX" {
 				ETA = each.Estimate
 			}
 
 		}
-		var MgoResp Response
+		var V_temp Response
 
-		json.NewDecoder(r.Body).Decode(&MgoResp)
+		json.NewDecoder(r.Body).Decode(&V_temp)
 
-		fmt.Println("Response Id found", MgoResp)
+		fmt.Println("Response Id found", V_temp)
 
-		V_Updated.TripId = Req.TripId
-		V_Updated.StartingId = Req.StartingId
-		V_Updated.Bestlocation_ids = Req.Bestlocation_ids
-		V_Updated.Costs = Req.Costs
-		V_Updated.Duration = Req.Duration
-		V_Updated.Distance = Req.Distance
+		V_Updated.TripId = V.TripId
+		V_Updated.StartPt = V.StartPt
+		V_Updated.Bestlocation_ids = V.Bestlocation_ids
+		V_Updated.Costs = V.Costs
+		V_Updated.Duration = V.Duration
+		V_Updated.Distance = V.Distance
 
-		V_Updated.Status = MgoResp.Status
+		V_Updated.Status = V_temp.Status
 		V_Updated.ETA = ETA
-		V_Updated.NextPt = Req.Bestlocation_ids[PutRequestIndex]
+		V_Updated.NextPt = V.Bestlocation_ids[PutRequestIndex]
 		fmt.Println("Updated Response is ", V_Updated)
 		PutRequestIndex++
-		if err := uc.session.DB("tripplanner").C("locationsC").Update(Req, V_Updated); err != nil {
+		if err := uc.session.DB("tripplanner").C("locationsC").Update(V, V_Updated); err != nil {
 			w.WriteHeader(404)
 			return
 
 		}
-		uj, _ := json.Marshal(Req)
+		uj, _ := json.Marshal(V)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		fmt.Fprintf(w, "%s", uj)
 
-	} else if PutRequestIndex >= len(Req.Bestlocation_ids) {
+	} else if PutRequestIndex >= len(V.Bestlocation_ids) {
 		Msg:= "You have reached the destination"
 		PutRequestIndex = 0
 		w.Header().Set("Content-Type", "application/json")
@@ -414,11 +419,11 @@ func main() {
 
 	mux := httprouter.New()
 
-	mux.GET("/trips/:id", GetTrip)
+	mux.GET("/trips/:id", getLoc)
 
-	mux.POST("/trips", MakeTrip)
+	mux.POST("/trips", createLoc)
 
-	mux.PUT("/trips/:id/request", PutTrip)
+	mux.PUT("/trips/:id/request", putLoc)
 
 	server := http.Server{
 		Addr:    "0.0.0.0:3021",
